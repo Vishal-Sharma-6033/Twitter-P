@@ -102,10 +102,9 @@ export default function ProfilePage() {
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState("posts");
   const [showEditModal, setShowEditModal] = useState(false);
-
-  if (!user) return null;
   const [tweets, setTweets] = useState<any>([]);
   const [loading, setloading] = useState(false);
+
   const fetchTweets = async () => {
     try {
       setloading(true);
@@ -117,11 +116,32 @@ export default function ProfilePage() {
       setloading(false);
     }
   };
+
   useEffect(() => {
-    fetchTweets();
-  }, []);
+    if (user) {
+      fetchTweets();
+    }
+  }, [user]);
+
+  if (!user) return null;
+
   // Filter tweets by current user
   const userTweets = tweets.filter((tweet: any) => tweet.author._id === user._id);
+
+  const formatJoinedDate = (value?: string) => {
+    if (!value) return "";
+
+    const parsedDate = new Date(value);
+    if (Number.isNaN(parsedDate.getTime())) {
+      return value;
+    }
+
+    return new Intl.DateTimeFormat("en-US", {
+      month: "long",
+      year: "numeric",
+      timeZone: "UTC",
+    }).format(parsedDate);
+  };
 
   return (
     <div className="min-h-screen">
@@ -222,11 +242,7 @@ export default function ProfilePage() {
             <Calendar className="h-4 w-4" />
             <span>
               Joined{" "}
-              {user.joinedDate &&
-                new Date(user.joinedDate).toLocaleDateString("en-us", {
-                  month: "long",
-                  year: "numeric",
-                })}
+              {formatJoinedDate(user.joinedDate)}
             </span>
           </div>
         </div>

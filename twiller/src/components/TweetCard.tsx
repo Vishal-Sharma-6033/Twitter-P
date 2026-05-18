@@ -17,6 +17,22 @@ import axiosInstance from "@/lib/axiosInstance";
 export default function TweetCard({ tweet }: any) {
   const { user } = useAuth();
   const [tweetstate, settweetstate] = useState(tweet);
+
+  const formatTweetDate = (value?: string) => {
+    if (!value) return "";
+
+    const parsedDate = new Date(value);
+    if (Number.isNaN(parsedDate.getTime())) {
+      return value;
+    }
+
+    return new Intl.DateTimeFormat("en-US", {
+      month: "long",
+      year: "numeric",
+      timeZone: "UTC",
+    }).format(parsedDate);
+  };
+
   const likeTweet = async (tweetId: string) => {
     try {
       const res = await axiosInstance.post(`/like/${tweetId}`, {
@@ -81,11 +97,7 @@ export default function TweetCard({ tweet }: any) {
               </span>
               <span className="text-gray-500">·</span>
               <span className="text-gray-500">
-                {tweetstate.timestamp &&
-                  new Date(tweetstate.timestamp).toLocaleDateString("en-us", {
-                    month: "long",
-                    year: "numeric",
-                  })}
+                {formatTweetDate(tweetstate.timestamp)}
               </span>
               <div className="ml-auto">
                 <Button
