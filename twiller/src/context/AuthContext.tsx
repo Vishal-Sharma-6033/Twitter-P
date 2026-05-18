@@ -11,6 +11,10 @@ import {
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { auth } from "./firebase";
 import axiosInstance from "../lib/axiosInstance";
+import {
+  requestBrowserNotificationPermission,
+  supportsBrowserNotifications,
+} from "@/lib/tweetNotifications";
 
 interface User {
   _id: string;
@@ -43,6 +47,9 @@ interface AuthContextType {
   logout: () => void;
   isLoading: boolean;
   googlesignin: () => void;
+  notificationsEnabled: boolean;
+  notificationPermission: NotificationPermission | "unsupported";
+  updateNotificationsEnabled: (enabled: boolean) => Promise<boolean>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -60,6 +67,47 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 }) => {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [notificationsEnabled, setNotificationsEnabled] = useState(false);
+  const [notificationPermission, setNotificationPermission] = useState<
+    NotificationPermission | "unsupported"
+  >("unsupported");
+
+  const getNotificationPreferenceKey = (email?: string) =>
+    email ? `twitter-keyword-notifications:${email}` : null;
+
+  const syncNotificationState = (email?: string) => {
+    if (!supportsBrowserNotifications()) {
+      setNotificationPermission("unsupported");
+      setNotificationsEnabled(false);
+      return;
+    }
+
+    setNotificationPermission(Notification.permission);
+
+    const preferenceKey = getNotificationPreferenceKey(email);
+    if (!preferenceKey) {
+      setNotificationsEnabled(false);
+      return;
+    }
+
+    const storedPreference = localStorage.getItem(preferenceKey) === "true";
+    const isAllowed = Notification.permission === "granted";
+
+    setNotificationsEnabled(storedPreference && isAllowed);
+
+    if (!isAllowed && storedPreference) {
+      localStorage.setItem(preferenceKey, "false");
+    }
+  };
+
+  const persistNotificationPreference = (email: string, enabled: boolean) => {
+    const preferenceKey = getNotificationPreferenceKey(email);
+    if (!preferenceKey) {
+      return;
+    }
+
+    localStorage.setItem(preferenceKey, enabled ? "true" : "false");
+  };
 
   const ensureAuthIsConfigured = () => {
     if (!auth) {
@@ -87,6 +135,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
           if (res.data) {
             setUser(res.data);
             localStorage.setItem("twitter-user", JSON.stringify(res.data));
+            syncNotificationState(res.data.email);
           }
         } catch (err) {
           console.log("Failed to fetch user:", err);
@@ -94,6 +143,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       } else {
         setUser(null);
         localStorage.removeItem("twitter-user");
+        setNotificationsEnabled(false);
+        setNotificationPermission(
+          supportsBrowserNotifications() ? Notification.permission : "unsupported"
+        );
       }
       setIsLoading(false);
     });
@@ -115,6 +168,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     if (res.data) {
       setUser(res.data);
       localStorage.setItem("twitter-user", JSON.stringify(res.data));
+      syncNotificationState(res.data.email);
     }
     // const mockUser: User = {
     //   id: '1',
@@ -151,6 +205,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     if (res.data) {
       setUser(res.data);
       localStorage.setItem("twitter-user", JSON.stringify(res.data));
+      syncNotificationState(res.data.email);
     }
     // const mockUser: User = {
     //   id: '1',
@@ -233,6 +288,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       if (userData) {
         setUser(userData);
         localStorage.setItem("twitter-user", JSON.stringify(userData));
+        syncNotificationState(userData.email);
       } else {
         throw new Error("Login/Register failed: No user data returned");
       }
@@ -242,6 +298,33 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const updateNotificationsEnabled = async (enabled: boolean) => {
+    if (!user) {
+      return false;
+    }
+
+    if (!supportsBrowserNotifications()) {
+      setNotificationPermission("unsupported");
+      setNotificationsEnabled(false);
+      return false;
+    }
+
+    if (!enabled) {
+      setNotificationsEnabled(false);
+      persistNotificationPreference(user.email, false);
+      return true;
+    }
+
+    const permission = await requestBrowserNotificationPermission();
+    setNotificationPermission(permission);
+
+    const isAllowed = permission === "granted";
+    setNotificationsEnabled(isAllowed);
+    persistNotificationPreference(user.email, isAllowed);
+
+    return isAllowed;
   };
 
   return (
@@ -254,6 +337,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         logout,
         isLoading,
         googlesignin,
+        notificationsEnabled,
+        notificationPermission,
+        updateNotificationsEnabled,
       }}
     >
       {children}
