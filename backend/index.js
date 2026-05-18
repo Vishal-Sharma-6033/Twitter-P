@@ -120,3 +120,24 @@ app.post("/retweet/:tweetid", async (req, res) => {
     return res.status(400).send({ error: error.message });
   }
 });
+
+// delete tweet
+app.delete("/post/:tweetid", async (req, res) => {
+  try {
+    const { userId } = req.body;
+    const tweet = await Tweet.findById(req.params.tweetid);
+
+    if (!tweet) {
+      return res.status(404).send({ error: "Tweet not found" });
+    }
+
+    if (!userId || tweet.author.toString() !== userId) {
+      return res.status(403).send({ error: "You can only delete your own tweet" });
+    }
+
+    await Tweet.findByIdAndDelete(req.params.tweetid);
+    return res.status(200).send({ message: "Tweet deleted successfully" });
+  } catch (error) {
+    return res.status(400).send({ error: error.message });
+  }
+});

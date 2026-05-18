@@ -10,13 +10,21 @@ import {
   Repeat2,
   Share,
   MoreHorizontal,
+  Trash2,
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import axiosInstance from "@/lib/axiosInstance";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "./ui/dropdown-menu";
 
 export default function TweetCard({ tweet }: any) {
   const { user } = useAuth();
   const [tweetstate, settweetstate] = useState(tweet);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const formatTweetDate = (value?: string) => {
     if (!value) return "";
@@ -54,6 +62,24 @@ export default function TweetCard({ tweet }: any) {
       console.log(error);
     }
   };
+
+  const deleteTweet = async (tweetId: string) => {
+    if (!user?._id) {
+      return;
+    }
+
+    try {
+      setIsDeleting(true);
+      await axiosInstance.delete(`/post/${tweetId}`, {
+        data: { userId: user._id },
+      });
+      settweetstate((prev: any) => ({ ...prev, __deleted: true }));
+    } catch (error) {
+      console.log(error);
+    } finally {
+      setIsDeleting(false);
+    }
+  };
   const formatNumber = (num: number) => {
     if (num >= 1000000) {
       return (num / 1000000).toFixed(1) + "M";
@@ -65,6 +91,12 @@ export default function TweetCard({ tweet }: any) {
   };
   const isLiked = tweetstate.likedBy?.includes(user?._id);
   const isRetweet = tweetstate.retweetedBy?.includes(user?._id);
+  const isOwner = tweetstate.author?._id === user?._id || tweetstate.author === user?._id;
+
+  if (tweetstate.__deleted) {
+    return null;
+  }
+
   return (
     <Card className="bg-black border-gray-800 border-x-0 border-t-0 rounded-none hover:bg-gray-950/50 transition-colors cursor-pointer">
       <CardContent className="p-4">
@@ -100,13 +132,32 @@ export default function TweetCard({ tweet }: any) {
                 {formatTweetDate(tweetstate.timestamp)}
               </span>
               <div className="ml-auto">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="p-1 rounded-full hover:bg-gray-900"
-                >
-                  <MoreHorizontal className="h-5 w-5 text-gray-500" />
-                </Button>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="p-1 rounded-full hover:bg-gray-900"
+                    >
+                      <MoreHorizontal className="h-5 w-5 text-gray-500" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-44 bg-gray-950 border-gray-800 text-white">
+                    {isOwner && (
+                      <DropdownMenuItem
+                        className="cursor-pointer text-red-400 focus:text-red-400"
+                        disabled={isDeleting}
+                        onClick={(e) => {
+                          e.preventDefault();
+                          deleteTweet(tweetstate._id);
+                        }}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                        {isDeleting ? "Deleting..." : "Delete tweet"}
+                      </DropdownMenuItem>
+                    )}
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </div>
             </div>
 
