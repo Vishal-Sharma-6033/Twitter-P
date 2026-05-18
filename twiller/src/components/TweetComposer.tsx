@@ -78,7 +78,7 @@ const TweetComposer = ({ onTweetPosted }: any) => {
                 placeholder="What's happening?"
                 value={content}
                 onChange={(e) => setContent(e.target.value)}
-                className="bg-transparent border-none text-xl text-white placeholder-gray-500 resize-none min-h-[120px] focus-visible:ring-0 focus-visible:ring-offset-0"
+                className="bg-transparent border-none text-xl text-white placeholder-gray-500 resize-none min-h-[120px] focus-visible:ring-0 focus-visible:ring-offset-0 whitespace-pre-wrap break-words"
               />
 
               {imageurl && (

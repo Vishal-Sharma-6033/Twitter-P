@@ -110,7 +110,7 @@ export default function TweetCard({ tweet }: any) {
               </div>
             </div>
 
-            <div className="text-white mb-3 leading-relaxed">
+            <div className="text-white mb-3 leading-relaxed whitespace-pre-wrap break-words">
               {tweetstate.content}
             </div>
 
