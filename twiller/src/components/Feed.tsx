@@ -134,6 +134,15 @@ const Feed = () => {
     return () => window.clearInterval(intervalId);
   }, [notificationsEnabled]);
   const handlenewtweet = (newtweet: any) => {
+    if (newtweet?.__skipNotification) {
+      if (newtweet?._id) {
+        seenTweetIdsRef.current.add(newtweet._id);
+      }
+
+      setTweets((prev: any) => [newtweet, ...prev]);
+      return;
+    }
+
     if (
       notificationsEnabled &&
       newtweet?._id &&

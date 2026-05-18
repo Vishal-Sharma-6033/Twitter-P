@@ -228,6 +228,7 @@ export default function ProfilePage() {
             variant="ghost"
             size="sm"
             className="absolute top-4 right-4 p-2 rounded-full bg-black/50 hover:bg-black/70"
+            onClick={() => setShowEditModal(true)}
           >
             <Camera className="h-5 w-5 text-white" />
           </Button>
@@ -246,6 +247,7 @@ export default function ProfilePage() {
               variant="ghost"
               size="sm"
               className="absolute bottom-2 right-2 p-2 rounded-full bg-black/70 hover:bg-black/90"
+              onClick={() => setShowEditModal(true)}
             >
               <Camera className="h-4 w-4 text-white" />
             </Button>

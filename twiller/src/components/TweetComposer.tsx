@@ -8,6 +8,10 @@ import { Image, Smile, Calendar, MapPin, BarChart3, Globe } from "lucide-react";
 import { Separator } from "./ui/separator";
 import axios from "axios";
 import axiosInstance from "@/lib/axiosInstance";
+import {
+  containsKeywordTweet,
+  notifyAboutKeywordTweet,
+} from "@/lib/tweetNotifications";
 const TweetComposer = ({ onTweetPosted }: any) => {
   const { user } = useAuth();
   const [content, setContent] = useState("");
@@ -26,7 +30,22 @@ const TweetComposer = ({ onTweetPosted }: any) => {
         image: imageurl,
       };
       const res = await axiosInstance.post("/post", tweetdata);
-      onTweetPosted(res.data);
+      const shouldNotify = containsKeywordTweet(content);
+
+      if (shouldNotify) {
+        notifyAboutKeywordTweet({
+          ...res.data,
+          author: {
+            displayName: user.displayName,
+            avatar: user.avatar,
+          },
+        });
+      }
+
+      onTweetPosted?.({
+        ...res.data,
+        __skipNotification: shouldNotify,
+      });
       setContent("");
       setimageurl("");
       setPreviewError(false);
