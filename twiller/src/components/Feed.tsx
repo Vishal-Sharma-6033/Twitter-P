@@ -1,10 +1,12 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Tabs, TabsList, TabsTrigger } from "./ui/tabs";
 import { Card, CardContent } from "./ui/card";
 import LoadingSpinner from "./loading-spinner";
 import TweetCard from "./TweetCard";
 import TweetComposer from "./TweetComposer";
 import axiosInstance from "@/lib/axiosInstance";
+import { containsKeywordTweet, notifyAboutKeywordTweet } from "@/lib/tweetNotifications";
+import { useAuth } from "@/context/AuthContext";
 
 interface Tweet {
   id: string;
@@ -86,13 +88,39 @@ const tweets: Tweet[] = [
   },
 ];
 const Feed = () => {
+  const { notificationsEnabled } = useAuth();
   const [tweets, setTweets] = useState<any>([]);
   const [loading, setloading] = useState(false);
+  const seenTweetIdsRef = useRef<Set<string>>(new Set());
+  const hasLoadedTweetsRef = useRef(false);
+
+  const maybeNotifyTweets = (incomingTweets: any[]) => {
+    if (!notificationsEnabled) {
+      return;
+    }
+
+    incomingTweets.forEach((tweet) => {
+      if (
+        tweet?._id &&
+        !seenTweetIdsRef.current.has(tweet._id) &&
+        containsKeywordTweet(tweet?.content)
+      ) {
+        notifyAboutKeywordTweet(tweet);
+      }
+    });
+  };
+
   const fetchTweets = async () => {
     try {
       setloading(true);
       const res = await axiosInstance.get("/post");
-      setTweets(res.data);
+      const nextTweets = Array.isArray(res.data) ? res.data : [];
+      if (hasLoadedTweetsRef.current) {
+        maybeNotifyTweets(nextTweets);
+      }
+      seenTweetIdsRef.current = new Set(nextTweets.map((tweet) => tweet._id));
+      hasLoadedTweetsRef.current = true;
+      setTweets(nextTweets);
     } catch (error) {
       console.error(error);
     } finally {
@@ -101,8 +129,23 @@ const Feed = () => {
   };
   useEffect(() => {
     fetchTweets();
-  }, []);
+    const intervalId = window.setInterval(fetchTweets, 30000);
+
+    return () => window.clearInterval(intervalId);
+  }, [notificationsEnabled]);
   const handlenewtweet = (newtweet: any) => {
+    if (
+      notificationsEnabled &&
+      newtweet?._id &&
+      containsKeywordTweet(newtweet?.content)
+    ) {
+      notifyAboutKeywordTweet(newtweet);
+    }
+
+    if (newtweet?._id) {
+      seenTweetIdsRef.current.add(newtweet._id);
+    }
+
     setTweets((prev: any) => [newtweet, ...prev]);
   };
   return (

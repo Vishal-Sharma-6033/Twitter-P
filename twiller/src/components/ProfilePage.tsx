@@ -8,7 +8,7 @@ import {
   Link as LinkIcon,
   MoreHorizontal,
   Camera,
-  Settings,
+  Bell,
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { Button } from "./ui/button";
@@ -99,11 +99,17 @@ const tweets: Tweet[] = [
   },
 ];
 export default function ProfilePage() {
-  const { user } = useAuth();
+  const {
+    user,
+    notificationsEnabled,
+    notificationPermission,
+    updateNotificationsEnabled,
+  } = useAuth();
   const [activeTab, setActiveTab] = useState("posts");
   const [showEditModal, setShowEditModal] = useState(false);
   const [tweets, setTweets] = useState<any>([]);
   const [loading, setloading] = useState(false);
+  const [notificationSaving, setNotificationSaving] = useState(false);
 
   const fetchTweets = async () => {
     try {
@@ -143,6 +149,16 @@ export default function ProfilePage() {
     }).format(parsedDate);
   };
 
+  const handleNotificationToggle = async () => {
+    setNotificationSaving(true);
+
+    try {
+      await updateNotificationsEnabled(!notificationsEnabled);
+    } finally {
+      setNotificationSaving(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-black">
       {/* Header */}
@@ -158,6 +174,49 @@ export default function ProfilePage() {
           <div>
             <h1 className="text-xl font-bold text-white">{user.displayName}</h1>
             <p className="text-sm text-gray-400">{userTweets.length} posts</p>
+          </div>
+        </div>
+      </div>
+
+      <div className="px-4 pb-6">
+        <div className="rounded-2xl border border-gray-800 bg-gray-950/60 p-4">
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex items-start gap-3">
+              <div className="rounded-full bg-blue-500/10 p-3 text-blue-400">
+                <Bell className="h-5 w-5" />
+              </div>
+              <div>
+                <h2 className="text-base font-semibold text-white">
+                  Keyword notifications
+                </h2>
+                <p className="mt-1 text-sm text-gray-400">
+                  Get a popup when tweets mention cricket or science.
+                </p>
+                <p className="mt-2 text-xs text-gray-500">
+                  Browser status: {notificationPermission}
+                </p>
+              </div>
+            </div>
+
+            <Button
+              type="button"
+              variant={notificationsEnabled ? "default" : "outline"}
+              className={
+                notificationsEnabled
+                  ? "rounded-full bg-blue-500 px-5 font-semibold text-white hover:bg-blue-600"
+                  : "rounded-full border-gray-700 bg-transparent px-5 font-semibold text-white hover:bg-gray-900"
+              }
+              onClick={handleNotificationToggle}
+              disabled={
+                notificationSaving || notificationPermission === "unsupported"
+              }
+            >
+              {notificationSaving
+                ? "Saving..."
+                : notificationsEnabled
+                ? "Enabled"
+                : "Disabled"}
+            </Button>
           </div>
         </div>
       </div>
