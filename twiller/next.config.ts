@@ -1,7 +1,9 @@
+import path from "path";
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   /* config options here */
+  outputFileTracingRoot: path.resolve(process.cwd(), ".."),
   env: {
     BACKEND_URL: process.env.BACKEND_URL,
   },
