@@ -36,7 +36,7 @@ const suggestions = [
 
 export default function RightSidebar() {
   return (
-    <div className="w-80 p-4 space-y-4">
+    <div className="w-full max-w-[350px] space-y-4 p-4">
       {/* Search */}
       <div className="relative">
         <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
@@ -103,7 +103,7 @@ export default function RightSidebar() {
       </Card>
 
       {/* Footer */}
-      <div className="p-4 text-xs text-gray-500 space-y-2">
+      <div className="space-y-2 p-4 text-xs text-gray-500">
         <div className="flex flex-wrap gap-x-3 gap-y-1">
           <a href="#" className="hover:underline">Terms of Service</a>
           <a href="#" className="hover:underline">Privacy Policy</a>

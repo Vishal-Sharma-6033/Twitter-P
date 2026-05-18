@@ -144,7 +144,7 @@ export default function ProfilePage() {
   };
 
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen bg-black">
       {/* Header */}
       <div className="sticky top-0 bg-black/90 backdrop-blur-md border-b border-gray-800 z-10">
         <div className="flex items-center px-4 py-3 space-x-8">
@@ -206,7 +206,7 @@ export default function ProfilePage() {
       </div>
 
       {/* Profile Info */}
-      <div className="px-4 pb-4 mt-12">
+      <div className="px-4 pb-4 mt-28 md:mt-24">
         <div className="flex items-start justify-between mb-3">
           <div>
             <h1 className="text-2xl font-bold text-white">
@@ -250,7 +250,7 @@ export default function ProfilePage() {
 
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-5 bg-transparent border-b border-gray-800 rounded-none h-auto">
+        <TabsList className="grid w-full grid-cols-5 bg-transparent border-b border-gray-800 rounded-none h-auto overflow-x-auto">
           <TabsTrigger
             value="posts"
             className="data-[state=active]:bg-transparent data-[state=active]:text-white data-[state=active]:border-b-2 data-[state=active]:border-blue-500 data-[state=active]:rounded-none text-gray-400 hover:bg-gray-900/50 py-4 font-semibold"
@@ -286,6 +286,17 @@ export default function ProfilePage() {
         <TabsContent value="posts" className="mt-0">
           <div className="divide-y divide-gray-800">
             { loading ? (
+              <Card className="bg-black border-none">
+                <CardContent className="py-12 text-center">
+                  <div className="text-gray-400">
+                    <h3 className="text-2xl font-bold mb-2">
+                      Loading posts...
+                    </h3>
+                    <p>We’re fetching your latest tweets.</p>
+                  </div>
+                </CardContent>
+              </Card>
+            ) : userTweets.length === 0 ? (
               <Card className="bg-black border-none">
                 <CardContent className="py-12 text-center">
                   <div className="text-gray-400">

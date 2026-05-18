@@ -45,8 +45,8 @@ export default function Sidebar({ currentPage = 'home', onNavigate }: SidebarPro
   ];
 
   return (
-    <div className="flex flex-col h-screen w-64 border-r border-gray-800 bg-black">
-      <div className="p-4">
+    <div className="flex h-full flex-col bg-black px-3 py-4 lg:px-4">
+      <div className="px-2 pb-6 pt-2">
         <TwitterLogo size="lg" className="text-white" />
       </div>
       
@@ -81,12 +81,12 @@ export default function Sidebar({ currentPage = 'home', onNavigate }: SidebarPro
       </nav>
       
       {user && (
-        <div className="p-4 border-t border-gray-800">
+        <div className="border-t border-gray-800 p-4">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button
                 variant="ghost"
-                className="w-full justify-start p-3 rounded-full hover:bg-gray-900"
+                className="w-full justify-start rounded-full p-3 hover:bg-gray-900"
               >
                 <Avatar className="h-10 w-10 mr-3">
                   <AvatarImage src={user.avatar} alt={user.displayName} />

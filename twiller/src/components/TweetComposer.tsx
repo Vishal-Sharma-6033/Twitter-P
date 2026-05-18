@@ -13,23 +13,26 @@ const TweetComposer = ({ onTweetPosted }: any) => {
   const [content, setContent] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [imageurl, setimageurl] = useState("");
+  const [previewError, setPreviewError] = useState(false);
   const maxLength = 200;
   const handleSubmit = async (e: any) => {
     e.preventDefault();
-    if(!user || !content.trim())return
+    if (!user || !content.trim()) return;
+    setIsLoading(true);
     try {
-      const tweetdata={
-        author:user?._id,
+      const tweetdata = {
+        author: user?._id,
         content,
-        image:imageurl
-      }
-      const res=await axiosInstance.post('/post',tweetdata)
-      onTweetPosted(res.data)
-      setContent("")
-      setimageurl("")
+        image: imageurl,
+      };
+      const res = await axiosInstance.post("/post", tweetdata);
+      onTweetPosted(res.data);
+      setContent("");
+      setimageurl("");
+      setPreviewError(false);
     } catch (error) {
-      console.log(error)
-    }finally{
+      console.log(error);
+    } finally {
       setIsLoading(false)
     }
   };
@@ -52,6 +55,7 @@ const TweetComposer = ({ onTweetPosted }: any) => {
       const url = res.data.data.display_url;
       if (url) {
         setimageurl(url);
+        setPreviewError(false);
       }
     } catch (error) {
       console.log(error);
@@ -60,7 +64,7 @@ const TweetComposer = ({ onTweetPosted }: any) => {
     }
   };
   return (
-    <Card className="bg-black border-gray-800 border-x-0 border-t-0 rounded-none">
+    <Card className="bg-black/95 border-gray-800 border-x-0 border-t-0 rounded-none">
       <CardContent className="p-4">
         <div className="flex space-x-4">
           <Avatar className="h-12 w-12">
@@ -76,6 +80,22 @@ const TweetComposer = ({ onTweetPosted }: any) => {
                 onChange={(e) => setContent(e.target.value)}
                 className="bg-transparent border-none text-xl text-white placeholder-gray-500 resize-none min-h-[120px] focus-visible:ring-0 focus-visible:ring-offset-0"
               />
+
+              {imageurl && (
+                <div className="mb-4 overflow-hidden rounded-2xl border border-gray-800 bg-gray-950">
+                  <img
+                    src={imageurl}
+                    alt="Tweet preview"
+                    onError={() => setPreviewError(true)}
+                    className={`w-full max-h-96 object-cover ${previewError ? "hidden" : "block"}`}
+                  />
+                  {previewError && (
+                    <div className="p-4 text-sm text-gray-400">
+                      Image preview unavailable.
+                    </div>
+                  )}
+                </div>
+              )}
 
               <div className="flex items-center justify-between mt-4">
                 <div className="flex items-center space-x-4 text-blue-400">
@@ -188,7 +208,7 @@ const TweetComposer = ({ onTweetPosted }: any) => {
                       disabled={!content.trim() || isOverLimit|| isLoading}
                       className="bg-blue-500 hover:bg-blue-600 disabled:bg-gray-700 disabled:text-gray-500 text-white font-semibold rounded-full px-6"
                     >
-                      Post
+                      {isLoading ? "Posting..." : "Post"}
                     </Button>
                   </div>
                 </div>
