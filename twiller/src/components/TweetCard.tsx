@@ -175,6 +175,32 @@ export default function TweetCard({ tweet }: any) {
               </div>
             )}
 
+            {tweetstate.audioUrl && (
+              <div className="mb-3 space-y-3 rounded-2xl border border-gray-800 bg-gray-950 p-4">
+                <div className="flex items-center gap-2 text-sm text-blue-400">
+                  <MessageCircle className="h-4 w-4" />
+                  <span>Audio tweet</span>
+                </div>
+                <audio controls className="w-full">
+                  <source src={tweetstate.audioUrl} />
+                  Your browser does not support the audio element.
+                </audio>
+                <div className="flex flex-wrap items-center gap-3 text-xs text-gray-400">
+                  {tweetstate.audioDurationSeconds != null && (
+                    <span>
+                      Duration: {Math.floor(tweetstate.audioDurationSeconds / 60)}:
+                      {String(Math.floor(tweetstate.audioDurationSeconds % 60)).padStart(2, "0")}
+                    </span>
+                  )}
+                  {tweetstate.audioSizeBytes != null && (
+                    <span>
+                      Size: {tweetstate.audioSizeBytes >= 1024 * 1024 ? `${(tweetstate.audioSizeBytes / (1024 * 1024)).toFixed(1)} MB` : `${(tweetstate.audioSizeBytes / 1024).toFixed(1)} KB`}
+                    </span>
+                  )}
+                </div>
+              </div>
+            )}
+
             <div className="flex items-center justify-between max-w-md">
               <Button
                 variant="ghost"

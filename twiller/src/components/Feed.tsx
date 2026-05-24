@@ -25,6 +25,9 @@ interface Tweet {
   liked?: boolean;
   retweeted?: boolean;
   image?: string;
+  audioUrl?: string;
+  audioDurationSeconds?: number;
+  audioSizeBytes?: number;
 }
 const tweets: Tweet[] = [
   {
