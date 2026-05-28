@@ -8,6 +8,7 @@ import fs from "fs/promises";
 import crypto from "crypto";
 import User from "./models/user.js";
 import Tweet from "./models/tweet.js";
+import PasswordResetRequest from "./models/passwordResetRequest.js";
 import {
   AUDIO_TWEET_MAX_SIZE_BYTES,
   AUDIO_TWEET_WINDOW_END_MINUTES,
@@ -64,6 +65,27 @@ const getIstMinutes = (date = new Date()) => {
   }, {});
 
   return values.hour * 60 + values.minute;
+};
+
+const normalizeEmail = (value = "") => value.trim().toLowerCase();
+
+const normalizePhone = (value = "") => value.replace(/\D/g, "");
+
+const getDayKey = (date = new Date()) => date.toISOString().slice(0, 10);
+
+const resolvePasswordResetIdentity = (identifier, identifierType) => {
+  const resolvedType =
+    identifierType === "phone" || identifierType === "email"
+      ? identifierType
+      : identifier.includes("@")
+        ? "email"
+        : "phone";
+
+  return {
+    identifierType: resolvedType,
+    identifier:
+      resolvedType === "email" ? normalizeEmail(identifier) : normalizePhone(identifier),
+  };
 };
 
 const audioStorage = multer.diskStorage({
@@ -203,6 +225,61 @@ app.patch("/userupdate/:email", async (req, res) => {
     );
     return res.status(200).send(updated);
   } catch (error) {
+    return res.status(400).send({ error: error.message });
+  }
+});
+
+app.post("/forgot-password/request", async (req, res) => {
+  try {
+    const { identifier, identifierType } = req.body;
+
+    if (!identifier || typeof identifier !== "string") {
+      return res.status(400).send({ error: "Email or phone number is required." });
+    }
+
+    const resolvedIdentity = resolvePasswordResetIdentity(identifier, identifierType);
+    const requestedDay = getDayKey();
+
+    const userQuery =
+      resolvedIdentity.identifierType === "email"
+        ? { email: resolvedIdentity.identifier }
+        : { phone: resolvedIdentity.identifier };
+
+    const user = await User.findOne(userQuery);
+    if (!user) {
+      return res.status(404).send({ error: "No account was found for the provided email or phone number." });
+    }
+
+    const existingRequest = await PasswordResetRequest.findOne({
+      identifier: resolvedIdentity.identifier,
+      requestedDay,
+    });
+
+    if (existingRequest) {
+      return res.status(429).send({
+        error: "You can use this option only one time per day.",
+      });
+    }
+
+    await PasswordResetRequest.create({
+      identifier: resolvedIdentity.identifier,
+      identifierType: resolvedIdentity.identifierType,
+      email: user.email,
+      requestedDay,
+    });
+
+    return res.status(200).send({
+      message: "Password reset request approved.",
+      email: user.email,
+      identifierType: resolvedIdentity.identifierType,
+    });
+  } catch (error) {
+    if (error.code === 11000) {
+      return res.status(429).send({
+        error: "You can use this option only one time per day.",
+      });
+    }
+
     return res.status(400).send({ error: error.message });
   }
 });
