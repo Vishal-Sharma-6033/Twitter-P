@@ -11,6 +11,7 @@ import {
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { auth } from "./firebase";
 import axiosInstance from "../lib/axiosInstance";
+import { normalizePhoneInput } from "@/lib/password-reset";
 import {
   requestBrowserNotificationPermission,
   supportsBrowserNotifications,
@@ -24,6 +25,7 @@ interface User {
   bio?: string;
   joinedDate: string;
   email: string;
+  phone?: string;
   website: string;
   location: string;
 }
@@ -35,7 +37,8 @@ interface AuthContextType {
     email: string,
     password: string,
     username: string,
-    displayName: string
+    displayName: string,
+    phone?: string
   ) => Promise<void>;
   updateProfile: (profileData: {
     displayName: string;
@@ -43,6 +46,7 @@ interface AuthContextType {
     location: string;
     website: string;
     avatar: string;
+    phone: string;
   }) => Promise<void>;
   logout: () => void;
   isLoading: boolean;
@@ -185,7 +189,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     email: string,
     password: string,
     username: string,
-    displayName: string
+    displayName: string,
+    phone = ""
   ) => {
     setIsLoading(true);
     // Mock authentication - in real app, this would call an API
@@ -195,11 +200,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       password
     );
     const user = usercred.user;
-    const newuser: any = {
+    const newuser = {
       username,
       displayName,
       avatar: user.photoURL || "https://images.pexels.com/photos/1139743/pexels-photo-1139743.jpeg?auto=compress&cs=tinysrgb&w=400",
-      email: user.email,
+      email: user.email ?? "",
+      phone: normalizePhoneInput(phone),
     };
     const res = await axiosInstance.post("/register", newuser);
     if (res.data) {
@@ -231,6 +237,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     location: string;
     website: string;
     avatar: string;
+    phone: string;
   }) => {
     if (!user) return;
 
@@ -241,6 +248,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     const updatedUser: User = {
       ...user,
       ...profileData,
+      phone: normalizePhoneInput(profileData.phone),
     };
     const res = await axiosInstance.patch(
       `/userupdate/${user.email}`,
@@ -266,15 +274,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         throw new Error("No email found in Google account");
       }
 
-      let userData;
+      let userData: User | null = null;
 
       try {
         const res = await axiosInstance.get("/loggedinuser", {
           params: { email: firebaseuser.email },
         });
-        userData = res.data;
-      } catch (err: any) {
-        const newuser: any = {
+        userData = res.data as User;
+      } catch {
+        const newuser = {
           username: firebaseuser.email.split("@")[0],
           displayName: firebaseuser.displayName || "User",
           avatar: firebaseuser.photoURL || "https://images.pexels.com/photos/1139743/pexels-photo-1139743.jpeg?auto=compress&cs=tinysrgb&w=400",
@@ -282,7 +290,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         };
 
         const registerRes = await axiosInstance.post("/register", newuser);
-        userData = registerRes.data;
+        userData = registerRes.data as User;
       }
 
       if (userData) {
@@ -292,9 +300,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       } else {
         throw new Error("Login/Register failed: No user data returned");
       }
-    } catch (error: any) {
+    } catch (error) {
       console.error("Google Sign-In Error:", error);
-      alert(error.response?.data?.message || error.message || "Login failed");
+      alert("Login failed");
     } finally {
       setIsLoading(false);
     }

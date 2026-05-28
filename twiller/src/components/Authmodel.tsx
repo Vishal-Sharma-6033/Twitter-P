@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 
-import { X, Mail, Lock, User, Eye, EyeOff } from 'lucide-react';
+import { X, Mail, Lock, User, Eye, EyeOff, Phone } from 'lucide-react';
 
 import LoadingSpinner from './loading-spinner';
 import { Button } from './ui/button';
@@ -13,6 +13,7 @@ import { Input } from './ui/input';
 import { Separator } from './ui/separator';
 import { useAuth } from '@/context/AuthContext';
 import TwitterLogo from './Twitterlogo';
+import { normalizePhoneInput } from '@/lib/password-reset';
 
 
 
@@ -30,7 +31,8 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'login' }: Au
     email: '',
     password: '',
     username: '',
-    displayName: ''
+    displayName: '',
+    phone: ''
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
 
@@ -63,6 +65,13 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'login' }: Au
       if (!formData.displayName.trim()) {
         newErrors.displayName = 'Display name is required';
       }
+
+      if (formData.phone.trim()) {
+        const normalizedPhone = normalizePhoneInput(formData.phone);
+        if (normalizedPhone.length < 7) {
+          newErrors.phone = 'Enter a valid phone number';
+        }
+      }
     }
 
     setErrors(newErrors);
@@ -77,10 +86,16 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'login' }: Au
       if (mode === 'login') {
         await login(formData.email, formData.password);
       } else {
-        await signup(formData.email, formData.password, formData.username, formData.displayName);
+        await signup(
+          formData.email,
+          formData.password,
+          formData.username,
+          formData.displayName,
+          formData.phone
+        );
       }
       onClose();
-      setFormData({ email: '', password: '', username: '', displayName: '' });
+      setFormData({ email: '', password: '', username: '', displayName: '', phone: '' });
       setErrors({});
     } catch {
       setErrors({ general: 'Authentication failed. Please try again.' });
@@ -97,7 +112,7 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'login' }: Au
   const switchMode = () => {
     setMode(mode === 'login' ? 'signup' : 'login');
     setErrors({});
-    setFormData({ email: '', password: '', username: '', displayName: '' });
+    setFormData({ email: '', password: '', username: '', displayName: '', phone: '' });
   };
 
   return (
@@ -167,6 +182,26 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'login' }: Au
                   </div>
                   {errors.username && (
                     <p className="text-red-400 text-sm">{errors.username}</p>
+                  )}
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="phone" className="text-white">Phone number</Label>
+                  <div className="relative">
+                    <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
+                    <Input
+                      id="phone"
+                      type="tel"
+                      placeholder="Optional recovery phone"
+                      value={formData.phone}
+                      onChange={(e) => handleInputChange('phone', e.target.value)}
+                      className="pl-10 bg-transparent border-gray-600 text-white placeholder-gray-400 focus:border-blue-500"
+                      disabled={isLoading}
+                    />
+                  </div>
+                  <p className="text-xs text-gray-400">Add a phone number now or from your profile later to enable recovery by phone.</p>
+                  {errors.phone && (
+                    <p className="text-red-400 text-sm">{errors.phone}</p>
                   )}
                 </div>
               </>

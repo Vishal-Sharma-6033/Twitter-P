@@ -2,15 +2,21 @@ import { useAuth } from "@/context/AuthContext";
 import React, { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { Button } from "./ui/button";
-import { Camera, LinkIcon, MapPin, X } from "lucide-react";
+import { Camera, LinkIcon, MapPin, Phone, X } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
 import { Label } from "./ui/label";
 import { Input } from "./ui/input";
 import { Textarea } from "./ui/textarea";
 import LoadingSpinner from "./loading-spinner";
 import axios from "axios";
+import { normalizePhoneInput } from "@/lib/password-reset";
 
-const Editprofile = ({ isopen, onclose }: any) => {
+interface EditprofileProps {
+  isopen: boolean;
+  onclose: () => void;
+}
+
+const Editprofile = ({ isopen, onclose }: EditprofileProps) => {
   const { user, updateProfile } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const [formData, setFormdata] = useState({
@@ -19,8 +25,9 @@ const Editprofile = ({ isopen, onclose }: any) => {
     location: "Earth",
     website: "example.com",
     avatar: user?.avatar || "",
+    phone: user?.phone || "",
   });
-  const [error, setError] = useState<any>({});
+  const [error, setError] = useState<Record<string, string>>({});
   if (!isopen || !user) return null;
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
@@ -43,6 +50,13 @@ const Editprofile = ({ isopen, onclose }: any) => {
       newErrors.location = "Location must be 30 characters or less";
     }
 
+    if (formData.phone.trim()) {
+      const normalizedPhone = normalizePhoneInput(formData.phone);
+      if (normalizedPhone.length < 7) {
+        newErrors.phone = "Enter a valid phone number";
+      }
+    }
+
     setError(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -55,7 +69,7 @@ const Editprofile = ({ isopen, onclose }: any) => {
     try {
       await updateProfile(formData);
       onclose();
-    } catch (error) {
+    } catch {
       setError({ general: "Failed to update profile. Please try again." });
     } finally {
       setIsLoading(false);
@@ -65,7 +79,7 @@ const Editprofile = ({ isopen, onclose }: any) => {
   const handleInputChange = (field: string, value: string) => {
     setFormdata((prev) => ({ ...prev, [field]: value }));
     if (error[field]) {
-      setError((prev: any) => ({ ...prev, [field]: "" }));
+      setError((prev) => ({ ...prev, [field]: "" }));
     }
   };
 
@@ -255,6 +269,33 @@ const Editprofile = ({ isopen, onclose }: any) => {
                   )}
                   <p className="text-gray-400 ml-auto">
                     {formData.location.length}/30
+                  </p>
+                </div>
+              </div>
+
+              {/* Recovery Phone */}
+              <div className="space-y-2">
+                <Label htmlFor="phone" className="text-white">
+                  Recovery phone number
+                </Label>
+                <div className="relative">
+                  <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
+                  <Input
+                    id="phone"
+                    type="tel"
+                    value={formData.phone}
+                    onChange={(e) =>
+                      handleInputChange("phone", e.target.value)
+                    }
+                    className="pl-10 bg-transparent border-gray-600 text-white placeholder-gray-400 focus:border-blue-500"
+                    placeholder="Add a recovery phone number"
+                    disabled={isLoading}
+                  />
+                </div>
+                <div className="flex justify-between text-sm">
+                  {error.phone && <p className="text-red-400">{error.phone}</p>}
+                  <p className="text-gray-400 ml-auto">
+                    {formData.phone.length}/32
                   </p>
                 </div>
               </div>
