@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
+import Link from "next/link";
 import { Button } from "./ui/button";
 import AuthModal from "./Authmodel";
 import TwitterLogo from "./Twitterlogo";
@@ -10,7 +11,7 @@ import Feed from "./Feed";
 export default function LandingPage() {
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [authMode, setAuthMode] = useState<"login" | "signup">("signup");
-  const { user, logout ,googlesignin} = useAuth();
+  const { user, googlesignin } = useAuth();
 
   const openAuthModal = (mode: "login" | "signup") => {
     setAuthMode(mode);
@@ -120,6 +121,12 @@ export default function LandingPage() {
             >
               Log in
             </Button>
+            <div className="text-sm text-gray-400">
+              Trouble signing in?{" "}
+              <Link href="/forgot-password" className="text-blue-400 hover:underline">
+                Reset your password
+              </Link>
+            </div>
           </div>
         </div>
       </div>
