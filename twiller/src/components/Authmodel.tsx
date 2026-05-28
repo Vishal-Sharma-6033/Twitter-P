@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from 'react';
+import Link from 'next/link';
 
 import { X, Mail, Lock, User, Eye, EyeOff } from 'lucide-react';
 
@@ -81,7 +82,7 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'login' }: Au
       onClose();
       setFormData({ email: '', password: '', username: '', displayName: '' });
       setErrors({});
-    } catch (error) {
+    } catch {
       setErrors({ general: 'Authentication failed. Please try again.' });
     }
   };
@@ -217,6 +218,18 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'login' }: Au
                 <p className="text-red-400 text-sm">{errors.password}</p>
               )}
             </div>
+
+            {mode === 'login' && (
+              <div className="flex justify-end text-sm">
+                <Link
+                  href="/forgot-password"
+                  className="text-blue-400 transition hover:text-blue-300"
+                  onClick={onClose}
+                >
+                  Forgot password?
+                </Link>
+              </div>
+            )}
 
             <Button
               type="submit"
