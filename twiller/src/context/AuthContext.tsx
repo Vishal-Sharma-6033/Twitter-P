@@ -8,7 +8,7 @@ import {
   signInWithPopup,
   signOut,
 } from "firebase/auth";
-import React, { createContext, useContext, useState, useEffect } from "react";
+import React, { createContext, useCallback, useContext, useEffect, useState } from "react";
 import { auth } from "./firebase";
 import axiosInstance from "../lib/axiosInstance";
 import { normalizePhoneInput } from "@/lib/password-reset";
@@ -79,7 +79,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const getNotificationPreferenceKey = (email?: string) =>
     email ? `twitter-keyword-notifications:${email}` : null;
 
-  const syncNotificationState = (email?: string) => {
+  const syncNotificationState = useCallback((email?: string) => {
     if (!supportsBrowserNotifications()) {
       setNotificationPermission("unsupported");
       setNotificationsEnabled(false);
@@ -102,7 +102,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     if (!isAllowed && storedPreference) {
       localStorage.setItem(preferenceKey, "false");
     }
-  };
+  }, []);
 
   const persistNotificationPreference = (email: string, enabled: boolean) => {
     const preferenceKey = getNotificationPreferenceKey(email);
@@ -155,7 +155,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       setIsLoading(false);
     });
     return () => unsubcribe();
-  }, []);
+  }, [syncNotificationState]);
 
   const login = async (email: string, password: string) => {
     setIsLoading(true);
