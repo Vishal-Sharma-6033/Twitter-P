@@ -21,6 +21,7 @@
     "multer": "^2.1.1",
     "music-metadata": "^11.12.3",
     "nodemailer": "^8.0.8",
+    "stripe": "^18.3.0",
     "nodemon": "^3.1.10"
   }
 }
