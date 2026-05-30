@@ -121,6 +121,9 @@ export default function LandingPage() {
             >
               Log in
             </Button>
+            <Button asChild variant="ghost" className="w-full max-w-xs py-3 rounded-full text-white hover:bg-gray-900">
+              <Link href="/subscription">View subscription plans</Link>
+            </Button>
             <div className="text-sm text-gray-400">
               Trouble signing in?{" "}
               <Link href="/forgot-password" className="text-blue-400 hover:underline">

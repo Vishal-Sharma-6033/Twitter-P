@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { CheckCircle2, FileText, Home } from "lucide-react";
 
 import axiosInstance from "@/lib/axiosInstance";
@@ -13,6 +14,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import LoadingSpinner from "./loading-spinner";
 
 export default function SubscriptionSuccessPage() {
+  const router = useRouter();
   const searchParams = useSearchParams();
   const sessionId = searchParams.get("session_id");
   const [loading, setLoading] = useState(true);
@@ -54,6 +56,18 @@ export default function SubscriptionSuccessPage() {
 
     void confirmPayment();
   }, [sessionId]);
+
+  useEffect(() => {
+    if (!summary || error) {
+      return;
+    }
+
+    const redirectTimer = window.setTimeout(() => {
+      router.replace("/");
+    }, 2500);
+
+    return () => window.clearTimeout(redirectTimer);
+  }, [summary, error, router]);
 
   const activePlan = summary ? getPlanById(summary.planId) : null;
 
@@ -113,7 +127,7 @@ export default function SubscriptionSuccessPage() {
             </div>
 
             <p className="text-sm leading-6 text-slate-400">
-              If the invoice email does not arrive immediately, refresh this page once.
+              If the invoice email does not arrive immediately, refresh this page once. You’ll be redirected home shortly.
             </p>
           </CardContent>
         </Card>
