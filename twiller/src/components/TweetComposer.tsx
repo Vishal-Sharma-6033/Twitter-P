@@ -11,6 +11,7 @@ import {
 } from "@/lib/tweetNotifications";
 import axiosInstance from "@/lib/axiosInstance";
 import axios from "axios";
+import Link from "next/link";
 import {
   AlertCircle,
   BarChart3,
@@ -23,7 +24,6 @@ import {
   ShieldCheck,
   Smile,
   Square,
-  Trash2,
   Upload,
   X,
 } from "lucide-react";
@@ -34,6 +34,7 @@ import { Button } from "./ui/button";
 import { Card, CardContent } from "./ui/card";
 import { Separator } from "./ui/separator";
 import { Textarea } from "./ui/textarea";
+import { getPlanById } from "@/lib/subscription";
 
 const AUDIO_SESSION_STORAGE_PREFIX = "twitter-audio-upload-session";
 
@@ -58,6 +59,18 @@ const formatSeconds = (seconds: number) => {
 const getAudioSessionStorageKey = (email: string) =>
   `${AUDIO_SESSION_STORAGE_PREFIX}:${email}`;
 
+const getErrorMessage = (error: unknown, fallback: string) => {
+  if (axios.isAxiosError(error)) {
+    return error.response?.data?.error || fallback;
+  }
+
+  if (error instanceof Error) {
+    return error.message || fallback;
+  }
+
+  return fallback;
+};
+
 const loadAudioDuration = (file: File) => {
   return new Promise<number>((resolve, reject) => {
     const audio = document.createElement("audio");
@@ -77,7 +90,11 @@ const loadAudioDuration = (file: File) => {
   });
 };
 
-const TweetComposer = ({ onTweetPosted }: any) => {
+interface TweetComposerProps {
+  onTweetPosted?: (tweet: unknown) => void;
+}
+
+const TweetComposer = ({ onTweetPosted }: TweetComposerProps) => {
   const { user } = useAuth();
   const audioFileInputRef = useRef<HTMLInputElement | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -112,6 +129,11 @@ const TweetComposer = ({ onTweetPosted }: any) => {
   const [isVerifyingOtp, setIsVerifyingOtp] = useState(false);
 
   const maxLength = 200;
+  const currentPlan = getPlanById(user?.subscriptionPlan || "free");
+  const activeTweetLimit = user?.subscriptionTweetLimit ?? currentPlan.tweetLimit;
+  const activeTweetCount = user?.subscriptionTweetCount ?? 0;
+  const isTweetQuotaExceeded =
+    activeTweetLimit !== Number.POSITIVE_INFINITY && activeTweetCount >= activeTweetLimit;
   const audioWindowOpen = isAudioTweetWindowOpen();
   const hasValidAudioSession =
     Boolean(audioUploadToken) &&
@@ -216,7 +238,6 @@ const TweetComposer = ({ onTweetPosted }: any) => {
       clearAudioPreview();
       stopRecordingInfrastructure();
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const prepareAudioFile = async (file: File) => {
@@ -273,8 +294,8 @@ const TweetComposer = ({ onTweetPosted }: any) => {
       setOtpStatus(response.data?.message || "OTP sent to your registered email.");
       setOtpCode(response.data?.devOtp || "");
       return true;
-    } catch (error: any) {
-      setOtpError(error.response?.data?.error || "Failed to request an OTP.");
+    } catch (error) {
+      setOtpError(getErrorMessage(error, "Failed to request an OTP."));
       return false;
     } finally {
       setIsRequestingOtp(false);
@@ -309,8 +330,8 @@ const TweetComposer = ({ onTweetPosted }: any) => {
       setOtpModalOpen(false);
       setOtpStatus("Audio upload verified for this session.");
       setOtpCode("");
-    } catch (error: any) {
-      setOtpError(error.response?.data?.error || "OTP verification failed.");
+    } catch (error) {
+      setOtpError(getErrorMessage(error, "OTP verification failed."));
     } finally {
       setIsVerifyingOtp(false);
     }
@@ -396,8 +417,8 @@ const TweetComposer = ({ onTweetPosted }: any) => {
       setPreviewError(false);
       resetAudioState();
       setAudioPanelOpen(false);
-    } catch (error: any) {
-      setAudioError(error.response?.data?.error || "Failed to post tweet.");
+    } catch (error) {
+      setAudioError(getErrorMessage(error, "Failed to post tweet."));
       console.log(error);
     } finally {
       setIsLoading(false);
@@ -454,8 +475,8 @@ const TweetComposer = ({ onTweetPosted }: any) => {
     setIsLoading(true);
     try {
       await prepareAudioFile(file);
-    } catch (error: any) {
-      setAudioError(error.message || "Failed to prepare audio file.");
+    } catch (error) {
+      setAudioError(getErrorMessage(error, "Failed to prepare audio file."));
       resetAudioState();
     } finally {
       setIsLoading(false);
@@ -535,8 +556,8 @@ const TweetComposer = ({ onTweetPosted }: any) => {
         try {
           await finalizeRecordedAudio();
           setAudioInfo("Recording ready to upload.");
-        } catch (error: any) {
-          setAudioError(error.message || "Unable to save recording.");
+        } catch (error) {
+          setAudioError(getErrorMessage(error, "Unable to save recording."));
         } finally {
           stopRecordingInfrastructure();
           recordingChunksRef.current = [];
@@ -555,7 +576,7 @@ const TweetComposer = ({ onTweetPosted }: any) => {
           stopRecording();
         }
       }, 1000);
-    } catch (error) {
+    } catch {
       setAudioError("Unable to access the microphone.");
       stopRecordingInfrastructure();
     }
@@ -580,6 +601,31 @@ const TweetComposer = ({ onTweetPosted }: any) => {
 
             <div className="flex-1">
               <form onSubmit={handleSubmit}>
+                <div className="mb-4 rounded-2xl border border-gray-800 bg-gray-950/80 p-4">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                      <div className="text-xs uppercase tracking-[0.2em] text-gray-500">Current plan</div>
+                      <div className="text-sm font-semibold text-white">{currentPlan.displayName}</div>
+                    </div>
+                    <Link
+                      href="/subscription"
+                      className="inline-flex items-center rounded-full border border-gray-700 px-4 py-2 text-xs font-semibold text-cyan-300 transition hover:bg-gray-900"
+                    >
+                      Upgrade plan
+                    </Link>
+                  </div>
+                  <div className="mt-3 text-sm text-gray-400">
+                    {activeTweetLimit === Number.POSITIVE_INFINITY
+                      ? "Unlimited tweeting is enabled for your account."
+                      : `${activeTweetCount}/${activeTweetLimit} tweets used in this cycle.`}
+                  </div>
+                  {isTweetQuotaExceeded && (
+                    <div className="mt-3 rounded-xl border border-amber-500/20 bg-amber-500/10 p-3 text-sm text-amber-200">
+                      Your plan limit is reached. Upgrade to post more tweets.
+                    </div>
+                  )}
+                </div>
+
                 <Textarea
                   placeholder={audioFile ? "Add an optional caption for your audio tweet..." : "What's happening?"}
                   value={content}
@@ -613,7 +659,7 @@ const TweetComposer = ({ onTweetPosted }: any) => {
                       <button
                         type="button"
                         onClick={removeAudioAttachment}
-                        className="rounded-full p-2 text-gray-400 hover:bg-gray-900 hover:text-white"
+                        disabled={isLoading || (!content.trim() && !audioFile) || isTweetQuotaExceeded}
                         aria-label="Remove audio"
                       >
                         <X className="h-4 w-4" />
