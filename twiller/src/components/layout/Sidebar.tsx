@@ -1,6 +1,7 @@
 "use client";
 
 import React from 'react';
+import Link from 'next/link';
 
 import {
   Home,
@@ -11,7 +12,8 @@ import {
   User,
   MoreHorizontal,
   Settings,
-  LogOut
+  LogOut,
+  Sparkles,
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -25,6 +27,7 @@ import { Button } from '../ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
 import TwitterLogo from '../Twitterlogo';
 import { useAuth } from '@/context/AuthContext';
+import { getPlanById } from '@/lib/subscription';
 
 interface SidebarProps {
   currentPage?: string;
@@ -33,6 +36,7 @@ interface SidebarProps {
 
 export default function Sidebar({ currentPage = 'home', onNavigate }: SidebarProps) {
   const { user, logout } = useAuth();
+  const activePlan = getPlanById(user?.subscriptionPlan || 'free');
 
   const navigation = [
     { name: 'Home', icon: Home, current: currentPage === 'home', page: 'home' },
@@ -78,6 +82,15 @@ export default function Sidebar({ currentPage = 'home', onNavigate }: SidebarPro
             Post
           </Button>
         </div>
+
+        <div className="mt-4 px-2">
+          <Button asChild variant="outline" className="w-full rounded-full border-gray-700 bg-black text-white hover:bg-gray-900">
+            <Link href="/subscription">
+              <Sparkles className="h-4 w-4" />
+              Plans
+            </Link>
+          </Button>
+        </div>
       </nav>
       
       {user && (
@@ -95,6 +108,9 @@ export default function Sidebar({ currentPage = 'home', onNavigate }: SidebarPro
                 <div className="flex-1 text-left">
                   <div className="text-white font-semibold">{user.displayName}</div>
                   <div className="text-gray-400 text-sm">@{user.username}</div>
+                  <div className="text-gray-500 text-xs mt-1">
+                    {activePlan.displayName} · {activePlan.tweetLimit === Number.POSITIVE_INFINITY ? 'Unlimited tweets' : `${user.subscriptionTweetCount || 0}/${activePlan.tweetLimit} used`}
+                  </div>
                 </div>
                 <MoreHorizontal className="h-5 w-5 text-gray-400" />
               </Button>

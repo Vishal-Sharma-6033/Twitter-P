@@ -26,6 +26,12 @@ interface User {
   joinedDate: string;
   email: string;
   phone?: string;
+  subscriptionPlan?: string;
+  subscriptionStatus?: string;
+  subscriptionCycleStartedAt?: string;
+  subscriptionCycleEndsAt?: string;
+  subscriptionTweetCount?: number;
+  subscriptionTweetLimit?: number;
   website: string;
   location: string;
 }
