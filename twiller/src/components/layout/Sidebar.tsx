@@ -1,7 +1,6 @@
 "use client";
 
 import React from 'react';
-import Link from 'next/link';
 
 import {
   Home,
@@ -45,6 +44,7 @@ export default function Sidebar({ currentPage = 'home', onNavigate }: SidebarPro
     { name: 'Messages', icon: Mail, current: currentPage === 'messages', page: 'messages' },
     { name: 'Bookmarks', icon: Bookmark, current: currentPage === 'bookmarks', page: 'bookmarks' },
     { name: 'Profile', icon: User, current: currentPage === 'profile', page: 'profile' },
+    { name: 'Plans', icon: Sparkles, current: currentPage === 'subscription', page: 'subscription' },
     { name: 'More', icon: MoreHorizontal, current: currentPage === 'more', page: 'more' },
   ];
 
@@ -83,14 +83,6 @@ export default function Sidebar({ currentPage = 'home', onNavigate }: SidebarPro
           </Button>
         </div>
 
-        <div className="mt-4 px-2">
-          <Button asChild variant="outline" className="w-full rounded-full border-gray-700 bg-black text-white hover:bg-gray-900">
-            <Link href="/subscription">
-              <Sparkles className="h-4 w-4" />
-              Plans
-            </Link>
-          </Button>
-        </div>
       </nav>
       
       {user && (

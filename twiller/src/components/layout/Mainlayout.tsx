@@ -5,10 +5,17 @@ import LoadingSpinner from "../loading-spinner";
 import Sidebar from "./Sidebar";
 import RightSidebar from "./Rightsidebar";
 import ProfilePage from "../ProfilePage";
+import SubscriptionPlansPage from "../SubscriptionPlansPage";
 
-const Mainlayout = ({ children }: { children: React.ReactNode }) => {
+const Mainlayout = ({
+  children,
+  currentPage: initialCurrentPage = "home",
+}: {
+  children: React.ReactNode;
+  currentPage?: string;
+}) => {
   const { user, isLoading } = useAuth();
-  const [currentPage, setCurrentPage] = useState("home");
+  const [currentPage, setCurrentPage] = useState(initialCurrentPage);
 
   if (isLoading) {
     return (
@@ -33,7 +40,13 @@ const Mainlayout = ({ children }: { children: React.ReactNode }) => {
           <Sidebar currentPage={currentPage} onNavigate={setCurrentPage} />
         </div>
         <main className="min-w-0 overflow-hidden border-x border-gray-800">
-          {currentPage === "profile" ? <ProfilePage /> : children}
+          {currentPage === "profile" ? (
+            <ProfilePage />
+          ) : currentPage === "subscription" ? (
+            <SubscriptionPlansPage />
+          ) : (
+            children
+          )}
         </main>
         <div className="hidden lg:block lg:sticky lg:top-0 lg:h-screen lg:overflow-y-auto">
           <RightSidebar />

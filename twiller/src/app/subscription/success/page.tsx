@@ -5,7 +5,7 @@ import SubscriptionSuccessPage from "@/components/SubscriptionSuccessPage";
 export default function Page() {
   return (
     <AuthProvider>
-      <Mainlayout>
+      <Mainlayout currentPage="subscription">
         <SubscriptionSuccessPage />
       </Mainlayout>
     </AuthProvider>

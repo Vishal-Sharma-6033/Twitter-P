@@ -5,7 +5,7 @@ import SubscriptionPlansPage from "@/components/SubscriptionPlansPage";
 export default function Page() {
   return (
     <AuthProvider>
-      <Mainlayout>
+      <Mainlayout currentPage="subscription">
         <SubscriptionPlansPage />
       </Mainlayout>
     </AuthProvider>
