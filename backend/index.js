@@ -9,6 +9,7 @@ import crypto from "crypto";
 import User from "./models/user.js";
 import Tweet from "./models/tweet.js";
 import PasswordResetRequest from "./models/passwordResetRequest.js";
+import SubscriptionPayment from "./models/subscriptionPayment.js";
 import {
   AUDIO_TWEET_MAX_SIZE_BYTES,
   AUDIO_TWEET_WINDOW_END_MINUTES,
@@ -24,6 +25,17 @@ import {
   verifyAudioOtp,
   verifyAudioUploadToken,
 } from "./utils/audioTweet.js";
+import {
+  createInvoiceNumber,
+  createSubscriptionCheckoutSession,
+  getPaymentWindowLabel,
+  getPlanConfig,
+  getPlanCycleEndsAt,
+  isPaymentWindowOpen,
+  normalizePlanId,
+  sendSubscriptionInvoiceEmail,
+  SUBSCRIPTION_PLANS,
+} from "./utils/subscriptionBilling.js";
 
 dotenv.config();
 const app = express();
@@ -65,6 +77,111 @@ const getIstMinutes = (date = new Date()) => {
   }, {});
 
   return values.hour * 60 + values.minute;
+};
+
+const getPlanState = (user) => {
+  const now = new Date();
+  const currentPlanId = normalizePlanId(user.subscriptionPlan || "free");
+  const currentPlan = getPlanConfig(currentPlanId);
+  let cycleStartedAt = user.subscriptionCycleStartedAt
+    ? new Date(user.subscriptionCycleStartedAt)
+    : new Date(user.joinedDate || now);
+  let cycleEndsAt = user.subscriptionCycleEndsAt
+    ? new Date(user.subscriptionCycleEndsAt)
+    : getPlanCycleEndsAt(cycleStartedAt);
+  let subscriptionStatus = user.subscriptionStatus || "inactive";
+  let subscriptionTweetCount = Number(user.subscriptionTweetCount || 0);
+  let subscriptionPlan = currentPlanId;
+  let shouldPersist = false;
+
+  if (cycleEndsAt.getTime() <= now.getTime()) {
+    subscriptionPlan = "free";
+    subscriptionStatus = "inactive";
+    subscriptionTweetCount = 0;
+    cycleStartedAt = now;
+    cycleEndsAt = getPlanCycleEndsAt(now);
+    shouldPersist = true;
+  }
+
+  if (subscriptionPlan === "free" && cycleEndsAt.getTime() <= now.getTime()) {
+    subscriptionTweetCount = 0;
+    cycleStartedAt = now;
+    cycleEndsAt = getPlanCycleEndsAt(now);
+    shouldPersist = true;
+  }
+
+  return {
+    currentPlan,
+    subscriptionPlan,
+    subscriptionStatus,
+    subscriptionTweetCount,
+    cycleStartedAt,
+    cycleEndsAt,
+    shouldPersist,
+  };
+};
+
+const normalizeSubscriptionView = (user) => {
+  const planState = getPlanState(user);
+  const baseUser = typeof user.toObject === "function" ? user.toObject() : { ...user };
+
+  return {
+    ...baseUser,
+    subscriptionPlan: planState.subscriptionPlan,
+    subscriptionStatus: planState.subscriptionStatus,
+    subscriptionTweetCount: planState.subscriptionTweetCount,
+    subscriptionCycleStartedAt: planState.cycleStartedAt,
+    subscriptionCycleEndsAt: planState.cycleEndsAt,
+    subscriptionTweetLimit: planState.currentPlan.tweetLimit,
+  };
+};
+
+const ensureSubscriptionState = async (user) => {
+  const planState = getPlanState(user);
+
+  if (!planState.shouldPersist) {
+    return normalizeSubscriptionView(user);
+  }
+
+  user.subscriptionPlan = planState.subscriptionPlan;
+  user.subscriptionStatus = planState.subscriptionStatus;
+  user.subscriptionTweetCount = planState.subscriptionTweetCount;
+  user.subscriptionCycleStartedAt = planState.cycleStartedAt;
+  user.subscriptionCycleEndsAt = planState.cycleEndsAt;
+  await user.save();
+
+  return normalizeSubscriptionView(user);
+};
+
+const canUserPostTweet = (user) => {
+  const planState = getPlanState(user);
+  const tweetLimit = planState.currentPlan.tweetLimit;
+
+  if (tweetLimit === Infinity) {
+    return { ok: true, limit: tweetLimit, currentPlan: planState.currentPlan };
+  }
+
+  if (planState.subscriptionTweetCount >= tweetLimit) {
+    return {
+      ok: false,
+      limit: tweetLimit,
+      currentPlan: planState.currentPlan,
+      error: `Your ${planState.currentPlan.displayName} allows only ${tweetLimit} tweet${tweetLimit === 1 ? "" : "s"} per month. Upgrade your plan to post more.`,
+    };
+  }
+
+  return { ok: true, limit: tweetLimit, currentPlan: planState.currentPlan };
+};
+
+const buildBillingPeriod = (user) => {
+  const startedAt = user.subscriptionCycleStartedAt
+    ? new Date(user.subscriptionCycleStartedAt)
+    : new Date();
+  const endsAt = user.subscriptionCycleEndsAt
+    ? new Date(user.subscriptionCycleEndsAt)
+    : getPlanCycleEndsAt(startedAt);
+
+  return { startedAt, endsAt };
 };
 
 const normalizeEmail = (value = "") => value.trim().toLowerCase();
@@ -209,7 +326,200 @@ app.get("/loggedinuser", async (req, res) => {
       return res.status(400).send({ error: "Email required" });
     }
     const user = await User.findOne({ email: email });
-    return res.status(200).send(user);
+    if (!user) {
+      return res.status(404).send({ error: "User not found" });
+    }
+
+    const normalizedUser = await ensureSubscriptionState(user);
+    return res.status(200).send(normalizedUser);
+  } catch (error) {
+    return res.status(400).send({ error: error.message });
+  }
+});
+
+app.get("/subscription/plans", async (req, res) => {
+  try {
+    return res.status(200).send({
+      plans: Object.values(SUBSCRIPTION_PLANS),
+      paymentWindow: getPaymentWindowLabel(),
+    });
+  } catch (error) {
+    return res.status(400).send({ error: error.message });
+  }
+});
+
+app.get("/subscription/status", async (req, res) => {
+  try {
+    const { email } = req.query;
+    if (!email) {
+      return res.status(400).send({ error: "Email required" });
+    }
+
+    const user = await User.findOne({ email });
+    if (!user) {
+      return res.status(404).send({ error: "User not found" });
+    }
+
+    const normalizedUser = await ensureSubscriptionState(user);
+    return res.status(200).send({ user: normalizedUser, plans: Object.values(SUBSCRIPTION_PLANS) });
+  } catch (error) {
+    return res.status(400).send({ error: error.message });
+  }
+});
+
+app.post("/subscription/checkout", async (req, res) => {
+  try {
+    const { email, planId } = req.body;
+
+    if (!email || !planId) {
+      return res.status(400).send({ error: "Email and plan are required." });
+    }
+
+    if (!isPaymentWindowOpen()) {
+      return res.status(403).send({
+        error: `Payments are only allowed between ${getPaymentWindowLabel()}.`,
+      });
+    }
+
+    const plan = getPlanConfig(planId);
+    if (!plan.isPaid) {
+      return res.status(400).send({ error: "The free plan does not require payment." });
+    }
+
+    const user = await User.findOne({ email });
+    if (!user) {
+      return res.status(404).send({ error: "User not found" });
+    }
+
+    const appUrl = process.env.APP_URL || "http://localhost:3000";
+    const { session } = await createSubscriptionCheckoutSession({
+      user,
+      planId: plan.id,
+      appUrl,
+    });
+
+    const invoiceNumber = createInvoiceNumber();
+    await SubscriptionPayment.findOneAndUpdate(
+      { checkoutSessionId: session.id },
+      {
+        user: user._id,
+        email: user.email,
+        planId: plan.id,
+        planName: plan.displayName,
+        amountInPaise: plan.amountInPaise,
+        currency: "INR",
+        gateway: "stripe",
+        checkoutSessionId: session.id,
+        invoiceNumber,
+        status: "pending",
+      },
+      { upsert: true, new: true }
+    );
+
+    return res.status(200).send({
+      checkoutUrl: session.url,
+      sessionId: session.id,
+      plan,
+    });
+  } catch (error) {
+    return res.status(400).send({ error: error.message });
+  }
+});
+
+app.post("/subscription/confirm", async (req, res) => {
+  try {
+    const { sessionId } = req.body;
+
+    if (!sessionId) {
+      return res.status(400).send({ error: "Session ID is required." });
+    }
+
+    const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
+    if (!stripeSecretKey) {
+      return res.status(400).send({ error: "Stripe is not configured." });
+    }
+
+    const Stripe = (await import("stripe")).default;
+    const stripe = new Stripe(stripeSecretKey, { apiVersion: "2024-06-20" });
+    const session = await stripe.checkout.sessions.retrieve(sessionId, {
+      expand: ["subscription"],
+    });
+
+    if (session.payment_status !== "paid") {
+      return res.status(400).send({ error: "Payment has not been completed yet." });
+    }
+
+    const plan = getPlanConfig(session.metadata?.planId || "free");
+    if (!plan.isPaid) {
+      return res.status(400).send({ error: "Invalid subscription plan." });
+    }
+
+    const user = await User.findOne({ email: session.metadata?.email || session.customer_email });
+    if (!user) {
+      return res.status(404).send({ error: "User not found" });
+    }
+
+    const billingCycleStartedAt = new Date();
+    const billingCycleEndsAt = getPlanCycleEndsAt(billingCycleStartedAt);
+    const transactionId =
+      typeof session.payment_intent === "string"
+        ? session.payment_intent
+        : session.payment_intent?.id || session.id;
+    const invoiceNumber =
+      (await SubscriptionPayment.findOne({ checkoutSessionId: sessionId }))?.invoiceNumber ||
+      createInvoiceNumber();
+
+    const paymentRecord = await SubscriptionPayment.findOneAndUpdate(
+      { checkoutSessionId: sessionId },
+      {
+        user: user._id,
+        email: user.email,
+        planId: plan.id,
+        planName: plan.displayName,
+        amountInPaise: plan.amountInPaise,
+        currency: "INR",
+        gateway: "stripe",
+        checkoutSessionId: sessionId,
+        invoiceNumber,
+        status: "paid",
+        billingCycleStartedAt,
+        billingCycleEndsAt,
+        paymentCompletedAt: new Date(),
+      },
+      { upsert: true, new: true }
+    );
+
+    user.subscriptionPlan = plan.id;
+    user.subscriptionStatus = "active";
+    user.subscriptionCycleStartedAt = billingCycleStartedAt;
+    user.subscriptionCycleEndsAt = billingCycleEndsAt;
+    user.subscriptionTweetCount = 0;
+    user.stripeCustomerId =
+      typeof session.customer === "string"
+        ? session.customer
+        : session.customer?.id || user.stripeCustomerId;
+    await user.save();
+
+    if (!paymentRecord.invoiceEmailSentAt) {
+      await sendSubscriptionInvoiceEmail({
+        to: user.email,
+        plan,
+        invoiceNumber,
+        transactionId,
+        billingCycleStartedAt,
+        billingCycleEndsAt,
+        paymentGateway: "Stripe",
+      });
+
+      paymentRecord.invoiceEmailSentAt = new Date();
+      await paymentRecord.save();
+    }
+
+    return res.status(200).send({
+      message: "Subscription activated successfully.",
+      user: normalizeSubscriptionView(user),
+      payment: paymentRecord,
+    });
   } catch (error) {
     return res.status(400).send({ error: error.message });
   }
@@ -291,11 +601,22 @@ app.post("/post", async (req, res) => {
     const hasTextContent = typeof req.body.content === "string" && req.body.content.trim();
     const hasImage = Boolean(req.body.image);
     const hasAudio = Boolean(req.body.audioUrl);
+    const authorUser = await User.findById(req.body.author);
 
     if (!hasTextContent && !hasImage && !hasAudio) {
       return res.status(400).send({
         error: "Tweet content, image, or audio is required.",
       });
+    }
+
+    if (!authorUser) {
+      return res.status(404).send({ error: "User not found" });
+    }
+
+    await ensureSubscriptionState(authorUser);
+    const tweetGate = canUserPostTweet(authorUser);
+    if (!tweetGate.ok) {
+      return res.status(403).send({ error: tweetGate.error });
     }
 
     const tweet = new Tweet({
@@ -304,6 +625,8 @@ app.post("/post", async (req, res) => {
       postType: req.body.postType || "text",
     });
     await tweet.save();
+    authorUser.subscriptionTweetCount = Number(authorUser.subscriptionTweetCount || 0) + 1;
+    await authorUser.save();
     return res.status(201).send(tweet);
   } catch (error) {
     return res.status(400).send({ error: error.message });
@@ -350,6 +673,13 @@ app.post("/audio/post", async (req, res) => {
         return res.status(403).send({ error: "Audio upload is only allowed for the signed-in user." });
       }
 
+      await ensureSubscriptionState(user);
+      const tweetGate = canUserPostTweet(user);
+      if (!tweetGate.ok) {
+        await removeFileIfExists(req.file?.path);
+        return res.status(403).send({ error: tweetGate.error });
+      }
+
       if (!req.file) {
         return res.status(400).send({ error: "An audio file is required." });
       }
@@ -367,6 +697,8 @@ app.post("/audio/post", async (req, res) => {
       });
 
       await tweet.save();
+      user.subscriptionTweetCount = Number(user.subscriptionTweetCount || 0) + 1;
+      await user.save();
       return res.status(201).send(tweet);
     } catch (error) {
       await removeFileIfExists(req.file?.path);
