@@ -36,6 +36,14 @@ import {
   sendSubscriptionInvoiceEmail,
   SUBSCRIPTION_PLANS,
 } from "./utils/subscriptionBilling.js";
+import {
+  createLanguageOtp,
+  getLanguageDeliveryChannel,
+  normalizeLanguageCode,
+  sendLanguageOtpEmail,
+  sendLanguageOtpSms,
+  verifyLanguageOtp,
+} from "./utils/languageSwitch.js";
 
 dotenv.config();
 const app = express();
@@ -187,6 +195,7 @@ const buildBillingPeriod = (user) => {
 const normalizeEmail = (value = "") => value.trim().toLowerCase();
 
 const normalizePhone = (value = "") => value.replace(/\D/g, "");
+const normalizeLanguage = (value = "") => normalizeLanguageCode(value);
 
 const getDayKey = (date = new Date()) => date.toISOString().slice(0, 10);
 
@@ -298,6 +307,78 @@ app.post("/audio-otp/verify", async (req, res) => {
       message: "OTP verified successfully.",
       uploadToken: createAudioUploadToken(email),
       expiresAt: Date.now() + 60 * 60 * 1000,
+    });
+  } catch (error) {
+    return res.status(400).send({ error: error.message });
+  }
+});
+
+app.post("/language-otp/request", async (req, res) => {
+  try {
+    const { email, language } = req.body;
+
+    if (!email || !language) {
+      return res.status(400).send({ error: "Email and language are required." });
+    }
+
+    const user = await User.findOne({ email });
+    if (!user) {
+      return res.status(404).send({ error: "No registered user found for this email." });
+    }
+
+    const normalizedLanguage = normalizeLanguage(language);
+    const deliveryChannel = getLanguageDeliveryChannel(normalizedLanguage);
+    const { otp, expiresAt } = createLanguageOtp({ email, language: normalizedLanguage });
+
+    if (deliveryChannel === "email") {
+      await sendLanguageOtpEmail({ to: user.email, language: normalizedLanguage, otp });
+    } else {
+      if (!user.phone) {
+        return res.status(400).send({
+          error: "A registered mobile number is required to switch to this language.",
+        });
+      }
+
+      await sendLanguageOtpSms({ to: user.phone, language: normalizedLanguage, otp });
+    }
+
+    return res.status(200).send({
+      message: `OTP sent to the registered ${deliveryChannel === "email" ? "email address" : "mobile number"}.`,
+      expiresAt,
+      delivery: deliveryChannel,
+      devOtp: process.env.NODE_ENV === "production" ? undefined : otp,
+      language: normalizedLanguage,
+    });
+  } catch (error) {
+    return res.status(400).send({ error: error.message });
+  }
+});
+
+app.post("/language-otp/verify", async (req, res) => {
+  try {
+    const { email, language, otp } = req.body;
+
+    if (!email || !language || !otp) {
+      return res.status(400).send({ error: "Email, language, and OTP are required." });
+    }
+
+    const user = await User.findOne({ email });
+    if (!user) {
+      return res.status(404).send({ error: "No registered user found for this email." });
+    }
+
+    const verification = verifyLanguageOtp({ email, language, otp });
+    if (!verification.ok) {
+      return res.status(400).send({ error: verification.message });
+    }
+
+    user.preferredLanguage = verification.language;
+    await user.save();
+
+    const updatedUser = await User.findOne({ email });
+    return res.status(200).send({
+      message: "Language updated successfully.",
+      user: updatedUser,
     });
   } catch (error) {
     return res.status(400).send({ error: error.message });
