@@ -14,6 +14,7 @@ const UserSchema = mongoose.Schema({
   bio: { type: String, default: "" },
   location: { type: String, default: "" },
   website: { type: String, default: "" },
+  preferredLanguage: { type: String, default: "en", index: true },
   joinedDate: { type: Date, default: Date.now() },
 });
 
