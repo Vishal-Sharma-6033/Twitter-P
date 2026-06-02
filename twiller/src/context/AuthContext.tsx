@@ -32,6 +32,7 @@ interface User {
   subscriptionCycleEndsAt?: string;
   subscriptionTweetCount?: number;
   subscriptionTweetLimit?: number;
+  preferredLanguage?: string;
   website: string;
   location: string;
 }
@@ -60,6 +61,7 @@ interface AuthContextType {
   notificationsEnabled: boolean;
   notificationPermission: NotificationPermission | "unsupported";
   updateNotificationsEnabled: (enabled: boolean) => Promise<boolean>;
+  refreshUser: () => Promise<User | null>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -119,6 +121,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     localStorage.setItem(preferenceKey, enabled ? "true" : "false");
   };
 
+  const persistUser = useCallback((nextUser: User | null) => {
+    setUser(nextUser);
+
+    if (nextUser) {
+      localStorage.setItem("twitter-user", JSON.stringify(nextUser));
+      syncNotificationState(nextUser.email);
+      return;
+    }
+
+    localStorage.removeItem("twitter-user");
+    setNotificationsEnabled(false);
+    setNotificationPermission(supportsBrowserNotifications() ? Notification.permission : "unsupported");
+  }, [syncNotificationState]);
+
   const ensureAuthIsConfigured = () => {
     if (!auth) {
       throw new Error(
@@ -143,25 +159,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
           });
 
           if (res.data) {
-            setUser(res.data);
-            localStorage.setItem("twitter-user", JSON.stringify(res.data));
-            syncNotificationState(res.data.email);
+            persistUser(res.data);
           }
         } catch (err) {
           console.log("Failed to fetch user:", err);
         }
       } else {
-        setUser(null);
-        localStorage.removeItem("twitter-user");
-        setNotificationsEnabled(false);
-        setNotificationPermission(
-          supportsBrowserNotifications() ? Notification.permission : "unsupported"
-        );
+        persistUser(null);
       }
       setIsLoading(false);
     });
     return () => unsubcribe();
-  }, [syncNotificationState]);
+  }, [persistUser]);
 
   const login = async (email: string, password: string) => {
     setIsLoading(true);
@@ -176,9 +185,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       params: { email: firebaseuser.email },
     });
     if (res.data) {
-      setUser(res.data);
-      localStorage.setItem("twitter-user", JSON.stringify(res.data));
-      syncNotificationState(res.data.email);
+      persistUser(res.data);
     }
     // const mockUser: User = {
     //   id: '1',
@@ -215,9 +222,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     };
     const res = await axiosInstance.post("/register", newuser);
     if (res.data) {
-      setUser(res.data);
-      localStorage.setItem("twitter-user", JSON.stringify(res.data));
-      syncNotificationState(res.data.email);
+      persistUser(res.data);
     }
     // const mockUser: User = {
     //   id: '1',
@@ -261,8 +266,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       updatedUser
     );
     if (res.data) {
-      setUser(updatedUser);
-      localStorage.setItem("twitter-user", JSON.stringify(updatedUser));
+      persistUser(updatedUser);
     }
 
     setIsLoading(false);
@@ -341,6 +345,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     return isAllowed;
   };
 
+  const refreshUser = async () => {
+    if (!user?.email) {
+      return null;
+    }
+
+    const res = await axiosInstance.get("/loggedinuser", {
+      params: { email: user.email },
+    });
+
+    if (res.data) {
+      persistUser(res.data);
+      return res.data as User;
+    }
+
+    return null;
+  };
+
   return (
     <AuthContext.Provider
       value={{
@@ -354,6 +375,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         notificationsEnabled,
         notificationPermission,
         updateNotificationsEnabled,
+        refreshUser,
       }}
     >
       {children}

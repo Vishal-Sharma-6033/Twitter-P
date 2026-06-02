@@ -27,6 +27,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
 import TwitterLogo from '../Twitterlogo';
 import { useAuth } from '@/context/AuthContext';
 import { getPlanById } from '@/lib/subscription';
+import { useI18n } from '@/lib/useI18n';
 
 interface SidebarProps {
   currentPage?: string;
@@ -35,17 +36,18 @@ interface SidebarProps {
 
 export default function Sidebar({ currentPage = 'home', onNavigate }: SidebarProps) {
   const { user, logout } = useAuth();
+  const { t } = useI18n();
   const activePlan = getPlanById(user?.subscriptionPlan || 'free');
 
   const navigation = [
-    { name: 'Home', icon: Home, current: currentPage === 'home', page: 'home' },
-    { name: 'Explore', icon: Search, current: currentPage === 'explore', page: 'explore' },
-    { name: 'Notifications', icon: Bell, current: currentPage === 'notifications', page: 'notifications', badge: true },
-    { name: 'Messages', icon: Mail, current: currentPage === 'messages', page: 'messages' },
-    { name: 'Bookmarks', icon: Bookmark, current: currentPage === 'bookmarks', page: 'bookmarks' },
-    { name: 'Profile', icon: User, current: currentPage === 'profile', page: 'profile' },
-    { name: 'Plans', icon: Sparkles, current: currentPage === 'subscription', page: 'subscription' },
-    { name: 'More', icon: MoreHorizontal, current: currentPage === 'more', page: 'more' },
+    { name: t('Home'), icon: Home, current: currentPage === 'home', page: 'home' },
+    { name: t('Explore'), icon: Search, current: currentPage === 'explore', page: 'explore' },
+    { name: t('Notifications'), icon: Bell, current: currentPage === 'notifications', page: 'notifications', badge: true },
+    { name: t('Messages'), icon: Mail, current: currentPage === 'messages', page: 'messages' },
+    { name: t('Bookmarks'), icon: Bookmark, current: currentPage === 'bookmarks', page: 'bookmarks' },
+    { name: t('Profile'), icon: User, current: currentPage === 'profile', page: 'profile' },
+    { name: t('Plans'), icon: Sparkles, current: currentPage === 'subscription', page: 'subscription' },
+    { name: t('More'), icon: MoreHorizontal, current: currentPage === 'more', page: 'more' },
   ];
 
   return (
@@ -79,7 +81,7 @@ export default function Sidebar({ currentPage = 'home', onNavigate }: SidebarPro
         
         <div className="mt-8 px-2">
           <Button className="w-full bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 rounded-full text-lg">
-            Post
+            {t('Post')}
           </Button>
         </div>
 
@@ -108,9 +110,12 @@ export default function Sidebar({ currentPage = 'home', onNavigate }: SidebarPro
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent className="w-56 bg-black border-gray-800">
-              <DropdownMenuItem className="text-white hover:bg-gray-900">
+              <DropdownMenuItem
+                className="text-white hover:bg-gray-900"
+                onClick={() => onNavigate?.("settings")}
+              >
                 <Settings className="mr-2 h-4 w-4" />
-                Settings
+                {t('Settings')}
               </DropdownMenuItem>
               <DropdownMenuSeparator className="bg-gray-800" />
               <DropdownMenuItem 
@@ -118,7 +123,7 @@ export default function Sidebar({ currentPage = 'home', onNavigate }: SidebarPro
                 onClick={logout}
               >
                 <LogOut className="mr-2 h-4 w-4" />
-                Log out @{user.username}
+                {t('Log out')} @{user.username}
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>

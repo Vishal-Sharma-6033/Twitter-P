@@ -6,6 +6,7 @@ import { Input } from '../ui/input';
 import { Card, CardContent } from '../ui/card';
 import { Button } from '../ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
+import { useI18n } from '@/lib/useI18n';
 
 
 
@@ -35,13 +36,15 @@ const suggestions = [
 ];
 
 export default function RightSidebar() {
+  const { t } = useI18n();
+
   return (
     <div className="w-full max-w-[350px] space-y-4 p-4">
       {/* Search */}
       <div className="relative">
         <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
         <Input
-          placeholder="Search"
+          placeholder={t('Search')}
           className="pl-12 bg-gray-900 border-gray-800 text-white placeholder-gray-400 rounded-full py-3"
         />
       </div>
@@ -49,12 +52,12 @@ export default function RightSidebar() {
       {/* Subscribe to Premium */}
       <Card className="bg-gray-900 border-gray-800">
         <CardContent className="p-4">
-          <h3 className="text-white text-xl font-bold mb-2">Subscribe to Premium</h3>
+          <h3 className="text-white text-xl font-bold mb-2">{t('Subscribe to Premium')}</h3>
           <p className="text-gray-400 text-sm mb-4">
             Subscribe to unlock new features and if eligible, receive a share of revenue.
           </p>
           <Button className="bg-blue-500 hover:bg-blue-600 text-white font-semibold rounded-full">
-            Subscribe
+            {t('Subscribe')}
           </Button>
         </CardContent>
       </Card>
@@ -64,7 +67,7 @@ export default function RightSidebar() {
       {/* Who to follow */}
       <Card className="bg-gray-900 border-gray-800">
         <CardContent className="p-4">
-          <h3 className="text-white text-xl font-bold mb-4">You might like</h3>
+          <h3 className="text-white text-xl font-bold mb-4">{t('You might like')}</h3>
           <div className="space-y-4">
             {suggestions.map((user) => (
               <div key={user.id} className="flex items-center justify-between">
@@ -91,13 +94,13 @@ export default function RightSidebar() {
                   variant="outline"
                   className="bg-white text-black hover:bg-gray-200 font-semibold rounded-full px-4"
                 >
-                  Follow
+                  {t('Follow')}
                 </Button>
               </div>
             ))}
           </div>
           <Button variant="ghost" className="text-blue-400 hover:text-blue-300 p-0 mt-4">
-            Show more
+            {t('Show more')}
           </Button>
         </CardContent>
       </Card>
@@ -105,11 +108,11 @@ export default function RightSidebar() {
       {/* Footer */}
       <div className="space-y-2 p-4 text-xs text-gray-500">
         <div className="flex flex-wrap gap-x-3 gap-y-1">
-          <a href="#" className="hover:underline">Terms of Service</a>
-          <a href="#" className="hover:underline">Privacy Policy</a>
-          <a href="#" className="hover:underline">Cookie Policy</a>
-          <a href="#" className="hover:underline">Accessibility</a>
-          <a href="#" className="hover:underline">Ads info</a>
+          <a href="#" className="hover:underline">{t('Terms of Service')}</a>
+          <a href="#" className="hover:underline">{t('Privacy Policy')}</a>
+          <a href="#" className="hover:underline">{t('Cookie Policy')}</a>
+          <a href="#" className="hover:underline">{t('Accessibility')}</a>
+          <a href="#" className="hover:underline">{t('Ads info')}</a>
         </div>
         <div>© 2024 X Corp.</div>
       </div>

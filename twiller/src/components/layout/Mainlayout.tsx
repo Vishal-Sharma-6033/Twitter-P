@@ -6,6 +6,7 @@ import Sidebar from "./Sidebar";
 import RightSidebar from "./Rightsidebar";
 import ProfilePage from "../ProfilePage";
 import SubscriptionPlansPage from "../SubscriptionPlansPage";
+import SettingsPage from "../SettingsPage";
 
 const Mainlayout = ({
   children,
@@ -44,6 +45,8 @@ const Mainlayout = ({
             <ProfilePage />
           ) : currentPage === "subscription" ? (
             <SubscriptionPlansPage />
+          ) : currentPage === "settings" ? (
+            <SettingsPage />
           ) : (
             children
           )}

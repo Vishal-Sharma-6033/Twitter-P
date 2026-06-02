@@ -7,6 +7,7 @@ import TweetComposer from "./TweetComposer";
 import axiosInstance from "@/lib/axiosInstance";
 import { containsKeywordTweet, notifyAboutKeywordTweet } from "@/lib/tweetNotifications";
 import { useAuth } from "@/context/AuthContext";
+import { useI18n } from "@/lib/useI18n";
 
 interface Tweet {
   id: string;
@@ -92,6 +93,7 @@ const tweets: Tweet[] = [
 ];
 const Feed = () => {
   const { notificationsEnabled } = useAuth();
+  const { t } = useI18n();
   const [tweets, setTweets] = useState<any>([]);
   const [loading, setloading] = useState(false);
   const seenTweetIdsRef = useRef<Set<string>>(new Set());
@@ -164,7 +166,7 @@ const Feed = () => {
     <div className="min-h-screen">
       <div className="sticky top-0 bg-black/90 backdrop-blur-md border-b border-gray-800 z-10">
         <div className="px-4 py-3">
-          <h1 className="text-xl font-bold text-white">Home</h1>
+          <h1 className="text-xl font-bold text-white">{t('Home')}</h1>
         </div>
 
         <Tabs defaultValue="foryou" className="w-full">
@@ -173,13 +175,13 @@ const Feed = () => {
               value="foryou"
               className="data-[state=active]:bg-transparent data-[state=active]:text-white data-[state=active]:border-b-2 data-[state=active]:border-blue-500 data-[state=active]:rounded-none text-gray-400 hover:bg-gray-900/50 py-4 font-semibold"
             >
-              For you
+              {t('For you')}
             </TabsTrigger>
             <TabsTrigger
               value="following"
               className="data-[state=active]:bg-transparent data-[state=active]:text-white data-[state=active]:border-b-2 data-[state=active]:border-blue-500 data-[state=active]:rounded-none text-gray-400 hover:bg-gray-900/50 py-4 font-semibold"
             >
-              Following
+              {t('Following')}
             </TabsTrigger>
           </TabsList>
         </Tabs>
@@ -191,7 +193,7 @@ const Feed = () => {
             <CardContent className="py-12 text-center">
               <div className="text-gray-400 mb-4">
                 <LoadingSpinner size="lg" className="mx-auto mb-4" />
-                <p>Loading tweets...</p>
+                <p>{t('Loading tweets...')}</p>
               </div>
             </CardContent>
           </Card>
